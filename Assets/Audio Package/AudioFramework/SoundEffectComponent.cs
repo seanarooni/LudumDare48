@@ -49,7 +49,7 @@ namespace AudioFramework
             Debug.Assert(soundClips.Length > 0);
             
             var mixer =
-                Resources.Load("SpaceOfficeMixer") as AudioMixer; //TODO: set path to sound mixer in global settings file.
+                Resources.Load("LD48Mixer") as AudioMixer; //TODO: set path to sound mixer in global settings file.
             Debug.Assert(mixer != null);
 
             _audioSource.outputAudioMixerGroup = mixer.FindMatchingGroups($"SFX/{soundName}")[0];
