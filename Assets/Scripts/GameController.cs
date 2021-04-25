@@ -56,6 +56,9 @@ public class GameController : MonoBehaviour
     [SerializeField] private float spawnRate = 2f;
 
     private SpriteRenderer _spriteRenderer;
+
+    [SerializeField] private Transform leftLimit;
+    [SerializeField] private Transform rightLimit;
     
     //certain objects show up between certain depths
     //background gets dark as depth increases
@@ -113,19 +116,40 @@ public class GameController : MonoBehaviour
 
         
     }
-    
+
+    private void OnCollisionEnter2D(Collision2D other)
+    {
+        Debug.Log($"collided with {other.collider.name}");
+
+        //have the fish dart off in the opposite direction of the collision
+
+        var collisionX = other.GetContact(0).point.x;
+        var fishX = other.transform.position.x;
+
+        if (fishX > collisionX)
+        {
+            
+        }
+        else
+        {
+            
+        }
+    }
+
     private void Update()
     {
         var direction = 0;
         if (Input.GetKey(KeyCode.LeftArrow))
         {
-            direction = -1;
+            if (_transform.position.x > leftLimit.position.x)
+                direction -= 1;
             _spriteRenderer.flipX = true;
         }
 
         if (Input.GetKey(KeyCode.RightArrow))
         {
-            direction = 1;
+            if (_transform.position.x < rightLimit.position.x)
+                direction += 1;
             _spriteRenderer.flipX = false;
         }
 
