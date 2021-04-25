@@ -1,13 +1,10 @@
-using System;
 using UnityEngine;
 using System.Collections.Generic;
-using System.IO.Compression;
 using AudioFramework;
 using TMPro;
 using DG.Tweening;
 using Unity.Mathematics;
-using Unity.VisualScripting.FullSerializer;
-using UnityEditor;
+using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 //recycle based on square magnitude from game controller 
@@ -22,6 +19,13 @@ public class GameController : MonoBehaviour
     [SerializeField] private bool shakeSnapping = false;
     [SerializeField] private bool shakeFade = true;
 
+    [Header("victory screen")] [SerializeField]
+    private float victoryScreenCameraYValue = -11f;
+
+    [SerializeField] private float victoryScreenScrollSpeed = 5f;
+
+    [SerializeField] private TextMeshPro victoryScreenFishHitLabel;
+    
     public static GameController Instance;
 
     private Transform _transform; 
@@ -34,11 +38,13 @@ public class GameController : MonoBehaviour
     [SerializeField] private float depthLevel2 = 2f;
     [SerializeField] private float depthLevel3 = 5f;
     [SerializeField] private float depthLevel4 = 8f;
-
+    [SerializeField] private float finishDepth = 16f;
+    
     [SerializeField] private float level1Timer = 3.5f; 
     [SerializeField] private float level2Timer = 2.5f; 
     [SerializeField] private float level3Timer = 3f; 
-    [SerializeField] private float level4Timer = 2f; 
+    [SerializeField] private float level4Timer = 2f;
+    [SerializeField] private float finishTimer = 10f;
     private float fishTimer;
 
     [SerializeField] private Color depthLevel1Color;
@@ -125,11 +131,22 @@ public class GameController : MonoBehaviour
         _spriteRenderer = GetComponent<SpriteRenderer>();
         Debug.Assert(_spriteRenderer!= null);
         _camera = Camera.main;
+        
+        Debug.Assert(victoryScreenFishHitLabel != null);
+    }
+
+    private bool _tutorial;
+    [SerializeField] private GameObject tutorialCanvas;
+    private void Tutorial()
+    {
+        Time.timeScale = 0f;
+        tutorialCanvas.SetActive(false);
     }
     
 
     private void Start()
     {
+        Tutorial();
         Screen.SetResolution(800, 600, true);
 
         for (var i = 0; i < 20; i++)
@@ -175,11 +192,51 @@ public class GameController : MonoBehaviour
     private void Collision()
     {
         AudioManager.Instance.PlayCollisionSound();
-        _camera.transform.DOShakePosition(.5f, 1f, shakeVibrato, shakeRandomness, shakeSnapping, shakeFade);
+        _camera.transform.DOShakePosition(shakeDuration, shakeStrength, shakeVibrato, shakeRandomness, shakeSnapping, shakeFade);
     }
+
+    private bool _paused;
+    private bool onVictoryConditionMet;
 
     private void Update()
     {
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            _paused = !_paused;
+            Time.timeScale = _paused ? 0f : 1f;
+        }
+
+        if (_paused)
+        {
+            return;
+        }
+
+        if (_tutorial)
+        {
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                //tutorial finished
+                _tutorial = false;
+                Time.timeScale = 1f;
+                tutorialCanvas.SetActive(false);
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        if (onVictoryConditionMet)
+        {
+            // ReSharper disable once InvertIf
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                AudioManager.Instance.GameMode();
+                SceneManager.LoadScene(1);
+            }
+            return;
+        }
+        
         var direction = 0;
         if (Input.GetKey(KeyCode.LeftArrow))
         {
@@ -242,7 +299,9 @@ public class GameController : MonoBehaviour
 
     private void FishSpawner()
     {
-        var position = new Vector3(Random.Range(leftLimit.position.x, rightLimit.position.x), fishSpawnYPosition, 0f);
+        if (currentDepthLevel == 5) return;
+        
+        var position = new Vector3(Random.Range(leftLimit.position.x - 4f, rightLimit.position.x + 4f), fishSpawnYPosition, 0f);
         var fish = Instantiate(fishPrefab, position, quaternion.identity);
 
         fish.GetComponent<SpriteRenderer>().sprite = GetFishSprite();
@@ -311,13 +370,32 @@ public class GameController : MonoBehaviour
                     Debug.Log($"achieved depth 4, fish collisions {fishCollisions.ToString()}");
                 }
                 break;
-            default:
-                Debug.LogWarning("out of depth range");
+            case 4:
+                if (depth > finishDepth)
+                {
+                    currentDepthLevel = 5;
+                    VictoryScreen();
+                    Debug.Log($"finishing depth, fish collisions {fishCollisions.ToString()}");
+                }
                 break;
+            // default:
+            //     Debug.LogWarning("out of depth range");
+            //     break;
         }
 
     }
-    
+
+    private void VictoryScreen()
+    {
+        onVictoryConditionMet = true;
+        victoryScreenFishHitLabel.text = "";
+        _camera.transform.DOMoveY(victoryScreenCameraYValue, victoryScreenScrollSpeed).OnComplete(() =>
+        {
+            victoryScreenFishHitLabel.text = $"{fishCollisions.ToString()} fish collisions";
+            // AudioManager.Instance.AmbienceMode();
+        });
+    }
+     
     private EffectComponent InstantiateEffect()
     {
         return Instantiate(effectPrefab, Origin, Quaternion.identity);

@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
@@ -28,7 +29,8 @@ namespace AudioFramework
         public static AudioManager Instance;
     
         public AudioMixer currentMixer;
-    
+
+        public GameObject sliderParent;
         public Slider soundEffectsVolumeSlider;
         public Slider musicVolumeSlider;
         public Slider masterVolumeSlider;
@@ -103,7 +105,19 @@ namespace AudioFramework
 
         private void Start()
         {
+            ToggleAudioControls();
             TitleScreen();
+        }
+
+        public void QuitGameButton()
+        {
+            Application.Quit();
+        }
+
+        public void RestartGame()
+        {
+            TitleScreen();
+            SceneManager.LoadScene(0);
         }
 
         public void PlayCollisionSound()
@@ -120,6 +134,11 @@ namespace AudioFramework
 
         public void GameMode()
         {
+            if (sliderParent.activeInHierarchy)
+            {
+                ToggleAudioControls();
+            }
+            
             StartCoroutine(FadeOut(menuMusicSource));
             StartCoroutine(FadeOut(ambienceSource));
             StartCoroutine(FadeIn(gameMusicSource));
@@ -167,6 +186,12 @@ namespace AudioFramework
             // masterVolumeSlider.value = value;
             currentMixer.SetFloat("masterVol", Mathf.Log(value) * 20);
         }
+
+        public void ToggleAudioControls()
+        {
+            sliderParent.SetActive(!sliderParent.activeInHierarchy);
+        }
+        
 #if UNITY_EDITOR
         private void Update()
         {
@@ -187,6 +212,9 @@ namespace AudioFramework
 
             if (Input.GetKeyDown(KeyCode.Alpha4))
                 PlayCollisionSound();
+            
+            if (Input.GetKeyDown(KeyCode.Escape))
+                ToggleAudioControls();
         }
 #endif
 
