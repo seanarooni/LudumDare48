@@ -1,3 +1,4 @@
+using AudioFramework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -11,7 +12,10 @@ public class MainMenu : MonoBehaviour
 
     public void PlayButtonPressed()
     {
+        AudioManager.Instance.GameMode();
+        AudioManager.Instance.StartGameMusic();
         SceneManager.LoadScene(1);
+
     }
 
     public void QuitButtonPressed()

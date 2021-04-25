@@ -1,13 +1,26 @@
 using System;
 using UnityEngine;
 using System.Collections.Generic;
+using System.IO.Compression;
+using AudioFramework;
 using TMPro;
+using DG.Tweening;
+using Unity.Mathematics;
+using Unity.VisualScripting.FullSerializer;
+using UnityEditor;
 using Random = UnityEngine.Random;
 
 //recycle based on square magnitude from game controller 
 public class GameController : MonoBehaviour
 {
     private Camera _camera;
+
+    [Header("shake")] [SerializeField] private float shakeDuration = 0.8f;
+    [SerializeField] private float shakeStrength = 1f;
+    [SerializeField] private int shakeVibrato = 10;
+    [SerializeField] private float shakeRandomness = 90f;
+    [SerializeField] private bool shakeSnapping = false;
+    [SerializeField] private bool shakeFade = true;
 
     public static GameController Instance;
 
@@ -22,6 +35,11 @@ public class GameController : MonoBehaviour
     [SerializeField] private float depthLevel3 = 5f;
     [SerializeField] private float depthLevel4 = 8f;
 
+    [SerializeField] private float level1Timer = 3.5f; 
+    [SerializeField] private float level2Timer = 2.5f; 
+    [SerializeField] private float level3Timer = 3f; 
+    [SerializeField] private float level4Timer = 2f; 
+    private float fishTimer;
 
     [SerializeField] private Color depthLevel1Color;
     [SerializeField] private Color depthLevel2Color;
@@ -59,6 +77,17 @@ public class GameController : MonoBehaviour
 
     [SerializeField] private Transform leftLimit;
     [SerializeField] private Transform rightLimit;
+
+    [SerializeField] private float fishSpawnYPosition;
+    [SerializeField] private float fishYTarget;
+    [SerializeField] private float fishVerticalMoveTime = 2f;
+    [SerializeField] private FishComponent fishPrefab;
+
+    [SerializeField] private float fishYHoverTarget;
+    [SerializeField] private float fishYHoverVariance;
+
+    [SerializeField] private float timeUntilFishHover = 1f;
+    private int fishCollisions;
     
     //certain objects show up between certain depths
     //background gets dark as depth increases
@@ -91,6 +120,7 @@ public class GameController : MonoBehaviour
 
         Debug.Assert(effectPrefab != null);
         timer = spawnRate;
+        fishTimer = level1Timer;
 
         _spriteRenderer = GetComponent<SpriteRenderer>();
         Debug.Assert(_spriteRenderer!= null);
@@ -126,14 +156,26 @@ public class GameController : MonoBehaviour
         var collisionX = other.GetContact(0).point.x;
         var fishX = other.transform.position.x;
 
+        other.collider.enabled = false;
+        fishCollisions++;
+
+        Collision();
         if (fishX > collisionX)
         {
-            
+            DOTween.Kill(other.collider.transform);
+            other.collider.transform.DOMoveX(10f, 0.5f).SetEase(Ease.InBack);
         }
         else
         {
-            
+            DOTween.Kill(other.collider.transform);
+            other.collider.transform.DOMoveX(-10f, 0.5f).SetEase(Ease.InBack);
         }
+    }
+
+    private void Collision()
+    {
+        AudioManager.Instance.PlayCollisionSound();
+        _camera.transform.DOShakePosition(.5f, 1f, shakeVibrato, shakeRandomness, shakeSnapping, shakeFade);
     }
 
     private void Update()
@@ -167,6 +209,20 @@ public class GameController : MonoBehaviour
         position.x += currentSpeed * Time.deltaTime;
         _transform.position = position;
 
+        fishTimer -= Time.deltaTime;
+        if (fishTimer < 0f)
+        {
+            fishTimer = currentDepthLevel switch
+            {
+                1 => fishTimer = level1Timer,
+                2 => fishTimer = level2Timer,
+                3 => fishTimer = level3Timer,
+                _ => fishTimer = level4Timer
+            };
+            
+            FishSpawner();
+        }
+        
         timer -= Time.deltaTime;
         if (timer < 0f)
         {
@@ -184,6 +240,22 @@ public class GameController : MonoBehaviour
         #endif
     }
 
+    private void FishSpawner()
+    {
+        var position = new Vector3(Random.Range(leftLimit.position.x, rightLimit.position.x), fishSpawnYPosition, 0f);
+        var fish = Instantiate(fishPrefab, position, quaternion.identity);
+
+        fish.GetComponent<SpriteRenderer>().sprite = GetFishSprite();
+
+        var sequence = DOTween.Sequence();
+        var ft = fish.transform;
+        var hover = fishYHoverTarget + Random.Range(0f, fishYHoverVariance);
+        sequence.Append(ft.DOMoveY(hover,  timeUntilFishHover));
+        sequence.Append(ft.DOMoveY(fishYTarget, fishVerticalMoveTime)
+            .OnComplete(() => Destroy(fish.transform.gameObject)));
+        sequence.Play();
+    }
+
     private Sprite GetFishSprite()
     {
         var sprite = currentDepthLevel switch
@@ -192,7 +264,7 @@ public class GameController : MonoBehaviour
             1 => level2Fish[Random.Range(0, level2Fish.Length)],
             2 => level3Fish[Random.Range(0, level3Fish.Length)],
             3 => level4Fish[Random.Range(0, level4Fish.Length)],
-            _ => throw new IndexOutOfRangeException()
+            _ => level4Fish[Random.Range(0, level4Fish.Length)]
         };
 
         return sprite;
@@ -236,8 +308,7 @@ public class GameController : MonoBehaviour
                 {
                     currentDepthLevel = 4;
                     _camera.backgroundColor = Color.black;
-                    Debug.Log("achieved depth 4");
-
+                    Debug.Log($"achieved depth 4, fish collisions {fishCollisions.ToString()}");
                 }
                 break;
             default:

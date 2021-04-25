@@ -45,42 +45,29 @@ namespace AudioFramework
         private float _currentMasterVolume;
         private bool _isFading;
         private Coroutine _activeCoroutine;
+
+
+        [SerializeField] private AudioSource sfxSource;
         
         [Header("General Music Sources")]
         [SerializeField] private AudioSource ambienceSource;
-        [SerializeField] private AudioSource heightenedAwarenessSource;
-        [SerializeField] private AudioSource themeMusicSource;
-        [SerializeField] private AudioSource deathMusicSource;
-
-        [Header("Sneaking Theme")]
-        [SerializeField] private AudioSource melodySource;
-        [SerializeField] private AudioSource chordsSource;
-        [SerializeField] private AudioSource stringsSource;
-        [SerializeField] private AudioSource alarmSource;
-
+        [SerializeField] private AudioSource gameMusicSource;
+        [SerializeField] private AudioSource menuMusicSource;
+        
         [Header("Clip Pools")]
-        [SerializeField] private AudioClip[] chatterClips;
-        [SerializeField] private AudioClip[] alertClips;
-        [SerializeField] private AudioClip[] typingClips;
-        [SerializeField] private AudioClip[] footstepClips;
+        [SerializeField] private AudioClip[] bubbleClips;
+        [SerializeField] private AudioClip[] collisionClips;
         
         private void Awake()
         {
             Debug.Assert(ambienceSource != null);
-            Debug.Assert(heightenedAwarenessSource != null);
-            Debug.Assert(themeMusicSource != null);
-            Debug.Assert(deathMusicSource != null);
-            
-            Debug.Assert(melodySource != null);
-            Debug.Assert(chordsSource != null);
-            Debug.Assert(stringsSource != null);
-            Debug.Assert(alarmSource != null);
-            
-            Debug.Assert(chatterClips.Length > 0);
-            Debug.Assert(alertClips.Length > 0);
-            Debug.Assert(typingClips.Length > 0);
-            Debug.Assert(footstepClips.Length > 0);
+            Debug.Assert(gameMusicSource != null);
+            Debug.Assert(menuMusicSource != null);
 
+
+            // Debug.Assert(bubbleClips.Length > 0);
+            // Debug.Assert(collisionClips.Length > 0);
+            
             //B-B-B-Bonus Feature!: ensure there's only 1 event system object in the scene.
             var eventSystems = FindObjectsOfType<EventSystem>();
             if (eventSystems.Length > 1)
@@ -116,79 +103,53 @@ namespace AudioFramework
 
         private void Start()
         {
-            SetSuspicionLevel(SuspicionLevels.None);
+            TitleScreen();
         }
-        
-        public void SetSuspicionLevel(SuspicionLevels level)
-        {
-            switch (level)
-            {
-                case SuspicionLevels.None:
-                    //play melody & chords,
-                    //mute strings & alarm
-                    StartCoroutine(FadeIn(melodySource));
-                    StartCoroutine(FadeIn(chordsSource));
-                    StartCoroutine(FadeOut(stringsSource));
-                    StartCoroutine(FadeOut(alarmSource));
-                    break;
-                case SuspicionLevels.Low:
-                    //play melody chords and strings
-                    //mute alarm
-                    StartCoroutine(FadeIn(melodySource));
-                    StartCoroutine(FadeIn(chordsSource));
-                    StartCoroutine(FadeIn(stringsSource));
-                    StartCoroutine(FadeOut(alarmSource));
-                    break;
-                case SuspicionLevels.High:
-                    //play chords strings and alarm
-                    //mute melody
-                    StartCoroutine(FadeOut(melodySource));
-                    StartCoroutine(FadeIn(chordsSource));
-                    StartCoroutine(FadeIn(stringsSource));
-                    StartCoroutine(FadeIn(alarmSource));
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(level), level, null);
-            }
-        }
-        
-        public AudioClip GetChatterClip()
-        {
-            return chatterClips[Random.Range(0, chatterClips.Length)];
-        }
-        
-        public AudioClip GetAlertClip()
-        {
-            return alertClips[Random.Range(0, alertClips.Length)];
-        }
-        
-        public AudioClip GetFootstepsClip()
-        {
-            return footstepClips[Random.Range(0, footstepClips.Length)];
-        }
-        
-        public AudioClip GetTypingClip()
-        {
-            return typingClips[Random.Range(0, typingClips.Length)];
-        }
-        
-        // public void EnterHeightenedAwarenessState()
-        // {
-        //     if (_isFading)
-        //         StopCoroutine(_activeCoroutine);
-        //     
-        //     //swap ambience music clip to 
-        //     _activeCoroutine = StartCoroutine(CrossFade(ambienceSource, heightenedAwarenessSource));
-        // }
-        //
-        // public void EndEnemyAwarenessHeightenedState()
-        // {
-        //     if (_isFading)
-        //         StopCoroutine(_activeCoroutine);
-        //
-        //     _activeCoroutine = StartCoroutine(CrossFade(heightenedAwarenessSource, ambienceSource));
-        // }
 
+        public void PlayCollisionSound()
+        {
+            sfxSource.Play();
+        }
+
+        public void TitleScreen()
+        {
+            StartCoroutine(FadeIn(menuMusicSource));
+            StartCoroutine(FadeOut(ambienceSource));
+            StartCoroutine(FadeOut(gameMusicSource));
+        }
+
+        public void GameMode()
+        {
+            StartCoroutine(FadeOut(menuMusicSource));
+            StartCoroutine(FadeOut(ambienceSource));
+            StartCoroutine(FadeIn(gameMusicSource));
+        }
+
+        public void StartGameMusic()
+        {
+            gameMusicSource.Play();
+        }
+
+        public void AmbienceMode()
+        {
+            StartCoroutine(FadeOut(menuMusicSource));
+            StartCoroutine(FadeIn(ambienceSource));
+            StartCoroutine(FadeOut(gameMusicSource));
+
+        }
+        
+        
+        
+        public AudioClip GetBubbleClip()
+        {
+            return bubbleClips[Random.Range(0, bubbleClips.Length)];
+        }
+        
+        public AudioClip GetCollisionCli()
+        {
+            return collisionClips[Random.Range(0, collisionClips.Length)];
+        }
+        
         public void OnSFXVolumeAdjust(float value)
         {
             // soundEffectsVolumeSlider.value = value;
@@ -209,32 +170,23 @@ namespace AudioFramework
 #if UNITY_EDITOR
         private void Update()
         {
-            // if (Input.GetKeyDown(KeyCode.F))
-            // {
-            //     // StartCoroutine(CrossFade(ambienceSource, heightenedAwarenessSource));
-            //     EnterHeightenedAwarenessState();
-            // }
-            //
-            // if (Input.GetKeyDown(KeyCode.G))
-            // {
-            //     // StartCoroutine(CrossFade(heightenedAwarenessSource, ambienceSource));
-            //     EndEnemyAwarenessHeightenedState();
-            // }
-
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
-                SetSuspicionLevel(SuspicionLevels.None);
+                TitleScreen();
             }
             
             if (Input.GetKeyDown(KeyCode.Alpha2))
             {
-                SetSuspicionLevel(SuspicionLevels.Low);
+                GameMode();
             }
             
             if (Input.GetKeyDown(KeyCode.Alpha3))
             {
-                SetSuspicionLevel(SuspicionLevels.High);
+                AmbienceMode();
             }
+
+            if (Input.GetKeyDown(KeyCode.Alpha4))
+                PlayCollisionSound();
         }
 #endif
 
