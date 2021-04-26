@@ -133,19 +133,30 @@ public class GameController : MonoBehaviour
         _camera = Camera.main;
         
         Debug.Assert(victoryScreenFishHitLabel != null);
+        Debug.Assert(tutorialCanvas != null);
     }
 
-    private bool _tutorial;
+    private bool _tutorial = true;
     [SerializeField] private GameObject tutorialCanvas;
     private void Tutorial()
     {
         Time.timeScale = 0f;
-        tutorialCanvas.SetActive(false);
+        AudioManager.Instance.StartGameMusic();
+        tutorialCanvas.SetActive(true);
+        
+        // DOTween.To(() => _camera.backgroundColor, x =>_camera.backgroundColor = x, Color.black, 45f);
+
     }
     
 
     private void Start()
     {
+        if (AudioManager.Instance == null)
+        {
+            SceneManager.LoadScene(0);
+            return;
+        }
+        
         Tutorial();
         Screen.SetResolution(800, 600, true);
 
@@ -168,11 +179,16 @@ public class GameController : MonoBehaviour
     {
         Debug.Log($"collided with {other.collider.name}");
 
+        if (onVictoryConditionMet)
+            return;
+        
         //have the fish dart off in the opposite direction of the collision
 
         var collisionX = other.GetContact(0).point.x;
         var fishX = other.transform.position.x;
 
+        
+        
         other.collider.enabled = false;
         fishCollisions++;
 
@@ -202,9 +218,15 @@ public class GameController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+#if UNITY_WEBGL
             _paused = !_paused;
             Time.timeScale = _paused ? 0f : 1f;
+#else
+Application.Quit();
+#endif
+
         }
+        
 
         if (_paused)
         {
@@ -235,6 +257,14 @@ public class GameController : MonoBehaviour
                 SceneManager.LoadScene(1);
             }
             return;
+        }
+        else
+        {
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                AudioManager.Instance.GameMode();
+                SceneManager.LoadScene(1);
+            }
         }
         
         var direction = 0;
@@ -341,6 +371,9 @@ public class GameController : MonoBehaviour
                 {
                     currentDepthLevel = 1;
                     _camera.backgroundColor = depthLevel2Color;
+
+                    // DOTween.To(() => _camera.backgroundColor, x =>_camera.backgroundColor = x, depthLevel2Color, depthLevel2);
+                    
                     Debug.Log("achieved depth 1");
                 }
                 break;
@@ -349,6 +382,8 @@ public class GameController : MonoBehaviour
                 {
                     currentDepthLevel = 2;
                     _camera.backgroundColor = depthLevel3Color;
+                    // DOTween.To(() => _camera.backgroundColor, x =>_camera.backgroundColor = x, depthLevel3Color, depthLevel3);
+
                     Debug.Log("achieved depth 2");
 
                 }
@@ -358,6 +393,8 @@ public class GameController : MonoBehaviour
                 {
                     currentDepthLevel = 3;
                     _camera.backgroundColor = depthLevel4Color;
+                    // DOTween.To(() => _camera.backgroundColor, x =>_camera.backgroundColor = x, depthLevel3Color, depthLevel4);
+
                     Debug.Log("achieved depth 3");
 
                 }
@@ -367,6 +404,8 @@ public class GameController : MonoBehaviour
                 {
                     currentDepthLevel = 4;
                     _camera.backgroundColor = Color.black;
+                    // DOTween.To(() => _camera.backgroundColor, x =>_camera.backgroundColor = x, Color.black, finishDepth);
+
                     Debug.Log($"achieved depth 4, fish collisions {fishCollisions.ToString()}");
                 }
                 break;
